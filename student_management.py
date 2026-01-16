@@ -1,67 +1,73 @@
-def add_student():
-    with open("students.txt", "a") as f:
-        sid = input("Enter Student ID: ")
-        name = input("Enter Name: ")
-        age = input("Enter Age: ")
-        clas = input("Enter Class: ")
-        f.write(f"{sid},{name},{age},{clas}\n")
-    print("Student added successfully!")
+import sqlite3
 
+def init_db():
+    conn = sqlite3.connect("students.db")
+    c = conn.cursor()
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS students (
+            id TEXT PRIMARY KEY,
+            name TEXT,
+            age INTEGER,
+            class TEXT
+        )
+    """)
+    conn.commit()
+    conn.close()
+
+def add_student():
+    conn = sqlite3.connect("students.db")
+    c = conn.cursor()
+    sid = input("Enter Student ID: ")
+    name = input("Enter Name: ")
+    age = input("Enter Age: ")
+    clas = input("Enter Class: ")
+    try:
+        c.execute("INSERT INTO students (id, name, age, class) VALUES (?, ?, ?, ?)", (sid, name, age, clas))
+        conn.commit()
+        print("Student added successfully!")
+    except sqlite3.IntegrityError:
+        print("Student ID already exists!")
+    conn.close()
 
 def view_students():
-    try:
-        with open("students.txt", "r") as f:
-            print("\n--- Student Records ---")
-            for line in f:
-                sid, name, age, clas = line.strip().split(",")
-                print(f"ID: {sid}, Name: {name}, Age: {age}, Class: {clas}")
-    except FileNotFoundError:
+    conn = sqlite3.connect("students.db")
+    c = conn.cursor()
+    c.execute("SELECT * FROM students")
+    rows = c.fetchall()
+    if rows:
+        print("\n--- Student Records ---")
+        for sid, name, age, clas in rows:
+            print(f"ID: {sid}, Name: {name}, Age: {age}, Class: {clas}")
+    else:
         print("No records found.")
-
+    conn.close()
 
 def search_student():
     sid = input("Enter Student ID to search: ")
-    found = False
-    try:
-        with open("students.txt", "r") as f:
-            for line in f:
-                data = line.strip().split(",")
-                if data[0] == sid:
-                    print(f"Found → ID: {data[0]}, Name: {data[1]}, Age: {data[2]}, Class: {data[3]}")
-                    found = True
-        if not found:
-            print("Student not found.")
-    except FileNotFoundError:
-        print("File not found.")
-
+    conn = sqlite3.connect("students.db")
+    c = conn.cursor()
+    c.execute("SELECT * FROM students WHERE id = ?", (sid,))
+    row = c.fetchone()
+    if row:
+        print(f"Found → ID: {row[0]}, Name: {row[1]}, Age: {row[2]}, Class: {row[3]}")
+    else:
+        print("Student not found.")
+    conn.close()
 
 def delete_student():
     sid = input("Enter Student ID to delete: ")
-    lines = []
-    deleted = False
-
-    try:
-        with open("students.txt", "r") as f:
-            lines = f.readlines()
-
-        with open("students.txt", "w") as f:
-            for line in lines:
-                if not line.startswith(sid + ","):
-                    f.write(line)
-                else:
-                    deleted = True
-
-        if deleted:
-            print("Student deleted successfully!")
-        else:
-            print("Student ID not found.")
-
-    except FileNotFoundError:
-        print("File not found.")
-
+    conn = sqlite3.connect("students.db")
+    c = conn.cursor()
+    c.execute("DELETE FROM students WHERE id = ?", (sid,))
+    if c.rowcount > 0:
+        print("Student deleted successfully!")
+        conn.commit()
+    else:
+        print("Student ID not found.")
+    conn.close()
 
 def menu():
-    
+    init_db()
     while True:
         print("\n===== Student Management System =====")
         print("1. Add Student")
